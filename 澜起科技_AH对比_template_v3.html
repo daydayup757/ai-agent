@@ -66,7 +66,7 @@ JSON_DATA_PLACEHOLDER
     <div class="chart-area" id="chart-premium" style="height:340px;"></div>
   </div>
   <div class="chart-panel full-width">
-    <div class="panel-header"><span class="badge badge-compare">量</span> 成交量对比</div>
+    <div class="panel-header"><span class="badge badge-compare">量</span> 成交量 & 成交额对比（统一单位）</div>
     <div class="chart-area" id="chart-compare-vol" style="height:280px;"></div>
   </div>
   <div class="chart-panel full-width">
@@ -245,23 +245,39 @@ JSON_DATA_PLACEHOLDER
     ]
   });
 
-  // Chart 5: 成交量对比
+  // Chart 5: 成交量对比 (统一单位：万股)
   var volChart = echarts.init(document.getElementById('chart-compare-vol'));
   var volDates = premiumOverlap.map(function(d){ return fmtDate(d.date); });
-  var aVols = premiumOverlap.map(function(d){ return d.a_vol / 10000; });
-  var hkVols = premiumOverlap.map(function(d){ return d.hk_vol / 1000000; });
+  var aVols = premiumOverlap.map(function(d){ return d.a_vol_wan; });
+  var hkVols = premiumOverlap.map(function(d){ return d.hk_vol_wan; });
+  var aAmts = premiumOverlap.map(function(d){ return d.a_amount_wan_cny / 10000; });
+  var hkAmts = premiumOverlap.map(function(d){ return d.hk_amount_wan_cny / 10000; });
 
   volChart.setOption({
     animation: true,
-    legend: {top:6, data:['A股成交量(万股)','港股成交量(百万股)'], textStyle:{fontSize:12}},
-    tooltip: {trigger:'axis'},
+    legend: {top:6, data:['A股成交量(万股)','港股成交量(万股)','A股成交额(亿元CNY)','港股成交额(亿元CNY)'], textStyle:{fontSize:11}},
+    tooltip: {
+      trigger:'axis',
+      formatter: function(params) {
+        var html = '<b>' + params[0].axisValue + '</b><br/>';
+        params.forEach(function(p) {
+          html += p.seriesName + ': <b>' + (p.value != null ? p.value.toFixed(2) : 'N/A') + '</b><br/>';
+        });
+        return html;
+      }
+    },
     dataZoom: [{type:'inside', start:0, end:100}, {show:true, type:'slider', bottom:'4%', height:16, start:0, end:100}],
-    grid: {left:'8%', right:'4%', top:'12%', bottom:'16%'},
+    grid: {left:'8%', right:'8%', top:'16%', bottom:'16%'},
     xAxis: {type:'category', data:volDates, axisLabel:{color:'#8492a6',fontSize:10}, axisLine:{lineStyle:{color:'#e8ecf0'}}},
-    yAxis: {type:'value', axisLabel:{color:'#8492a6',fontSize:10}, splitLine:{lineStyle:{color:'#f0f2f5',type:'dashed'}}},
+    yAxis: [
+      {type:'value', name:'万股', position:'left', axisLabel:{color:'#8492a6',fontSize:10}, splitLine:{lineStyle:{color:'#f0f2f5',type:'dashed'}}, nameTextStyle:{fontSize:11}},
+      {type:'value', name:'亿元CNY', position:'right', axisLabel:{color:'#8492a6',fontSize:10}, splitLine:{show:false}, nameTextStyle:{fontSize:11}}
+    ],
     series: [
-      {name:'A股成交量(万股)', type:'bar', data:aVols, itemStyle:{color:'rgba(231,76,60,0.7)'}, barMaxWidth:8},
-      {name:'港股成交量(百万股)', type:'bar', data:hkVols, itemStyle:{color:'rgba(46,204,113,0.7)'}, barMaxWidth:8}
+      {name:'A股成交量(万股)', type:'bar', data:aVols, yAxisIndex:0, itemStyle:{color:'rgba(231,76,60,0.7)'}, barMaxWidth:8},
+      {name:'港股成交量(万股)', type:'bar', data:hkVols, yAxisIndex:0, itemStyle:{color:'rgba(46,204,113,0.7)'}, barMaxWidth:8},
+      {name:'A股成交额(亿元CNY)', type:'line', data:aAmts, yAxisIndex:1, smooth:true, showSymbol:false, lineStyle:{width:1.5,color:'#e74c3c'}, itemStyle:{color:'#e74c3c'}, areaStyle:{color:'rgba(231,76,60,0.06)'}},
+      {name:'港股成交额(亿元CNY)', type:'line', data:hkAmts, yAxisIndex:1, smooth:true, showSymbol:false, lineStyle:{width:1.5,color:'#2ecc71'}, itemStyle:{color:'#2ecc71'}, areaStyle:{color:'rgba(46,204,113,0.06)'}}
     ]
   });
 
