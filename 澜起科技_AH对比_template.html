@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>澜起科技 AH 对比分析看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    color: #333;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
+    color: #fff;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header .title-area { display: flex; align-items: baseline; gap: 12px; }
+  .header .stock-name { font-size: 26px; font-weight: 700; }
+  .header .stock-codes { font-size: 14px; color: #8ea4c0; }
+  .header .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 4px; }
+  .tag-a { background: #e74c3c33; color: #f5a623; border: 1px solid #f5a62355; }
+  .tag-hk { background: #2ecc7133; color: #2ecc71; border: 1px solid #2ecc7155; }
+
+  .summary-row {
+    display: flex;
+    gap: 16px;
+    padding: 14px 28px;
+    background: #fff;
+    border-bottom: 1px solid #e8ecf0;
+  }
+  .summary-card {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #e8ecf0;
+    background: #fafbfc;
+  }
+  .summary-card .card-label { font-size: 12px; color: #8492a6; margin-bottom: 4px; }
+  .summary-card .card-value { font-size: 22px; font-weight: 700; }
+  .up { color: #e74c3c; }
+  .down { color: #2ecc71; }
+  .neutral { color: #8492a6; }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px 28px;
+  }
+  .chart-panel {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  .chart-panel .panel-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 1px solid #e8ecf0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chart-panel .panel-header .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  .badge-a { background: #e74c3c22; color: #e74c3c; }
+  .badge-hk { background: #2ecc7122; color: #2ecc71; }
+  .badge-compare { background: #3498db22; color: #3498db; }
+  .badge-premium { background: #f39c1222; color: #f39c12; }
+
+  .chart-panel .chart-area { width: 100%; }
+
+  .full-width {
+    grid-column: 1 / -1;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 12px;
+    color: #8492a6;
+    font-size: 11px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-area">
+    <span class="stock-name">澜起科技 AH 对比分析</span>
+    <span class="stock-codes">
+      <span class="tag tag-a">A股 688008.SH</span>
+      <span class="tag tag-hk">港股 06809.HK</span>
+    </span>
+  </div>
+  <div id="header-prices" style="text-align:right;"></div>
+</div>
+
+<div class="summary-row" id="summary-row"></div>
+
+<!-- A股 K线 -->
+<div class="chart-grid">
+  <div class="chart-panel">
+    <div class="panel-header"><span class="badge badge-a">A股</span> 日K线 · 科创板 688008.SH</div>
+    <div class="chart-area" id="chart-a-kline" style="height:420px;"></div>
+  </div>
+
+  <!-- 港股 K线 -->
+  <div class="chart-panel">
+    <div class="panel-header"><span class="badge badge-hk">港股</span> 日K线 · 港交所 06809.HK</div>
+    <div class="chart-area" id="chart-hk-kline" style="height:420px;"></div>
+  </div>
+
+  <!-- 收盘价对比 -->
+  <div class="chart-panel full-width">
+    <div class="panel-header"><span class="badge badge-compare">对比</span> 收盘价走势对比（港股折算为 CNY）</div>
+    <div class="chart-area" id="chart-compare-price" style="height:340px;"></div>
+  </div>
+
+  <!-- AH溢价率 -->
+  <div class="chart-panel full-width">
+    <div class="panel-header"><span class="badge badge-premium">溢价</span> AH 溢价率走势</div>
+    <div class="chart-area" id="chart-premium" style="height:340px;"></div>
+  </div>
+
+  <!-- 成交量对比 -->
+  <div class="chart-panel full-width">
+    <div class="panel-header"><span class="badge badge-compare">量</span> 成交量对比（万股/百万股）</div>
+    <div class="chart-area" id="chart-compare-vol" style="height:280px;"></div>
+  </div>
+
+  <!-- 涨跌幅对比 -->
+  <div class="chart-panel full-width">
+    <div class="panel-header"><span class="badge badge-compare">幅</span> 日涨跌幅对比</div>
+    <div class="chart-area" id="chart-compare-pct" style="height:280px;"></div>
+  </div>
+</div>
+
+<div class="footer">数据来源：Tushare Pro · 港股汇率近似值 1 HKD ≈ 0.91 CNY · 港股自 2026年2月9日上市</div>
+
+<script>
+const DATA = COMPARISON_DATA_PLACEHOLDER;
+const aData = DATA.a_share;
+const hkData = DATA.hk_share;
+const premiumData = DATA.premium;
+const rate = DATA.rate_hkd_cny;
+
+const upColor = '#e74c3c';
+const downColor = '#2ecc71';
+const upBorder = '#c0392b';
+const downBorder = '#27ae60';
+
+// --- Format date string ---
+function fmtDate(s) {
+  return s.substring(0,4) + '-' + s.substring(4,6) + '-' + s.substring(6,8);
+}
+
+// --- Header ---
+const aLast = aData[aData.length-1];
+const hkLast = hkData[hkData.length-1];
+const aChg = aLast.pct_chg, hkChg = hkLast.pct_chg;
+const aUp = aChg >= 0, hkUp = hkChg >= 0;
+
+document.getElementById('header-prices').innerHTML = `
+  <div style="display:flex;gap:24px;align-items:baseline;">
+    <div><span style="font-size:12px;color:#8ea4c0;">A股</span>
+      <span style="font-size:24px;font-weight:700;color:${aUp?upColor:downColor}">${aLast.close.toFixed(2)}</span>
+      <span style="font-size:13px;color:${aUp?upColor:downColor}">${aUp?'↑':'↓'}${aChg.toFixed(2)}%</span>
+    </div>
+    <div><span style="font-size:12px;color:#8ea4c0;">港股</span>
+      <span style="font-size:24px;font-weight:700;color:${hkUp?upColor:downColor}">${hkLast.close.toFixed(2)}</span>
+      <span style="font-size:13px;color:${hkUp?upColor:downColor}">${hkUp?'↑':'↓'}${hkChg.toFixed(2)}%</span>
+    </div>
+  </div>
+`;
+
+// --- Summary cards ---
+const premLatest = premiumData.length ? premiumData[premiumData.length-1].premium_pct : 0;
+const premClass = premLatest >= 0 ? 'up' : 'down';
+const premSign = premLatest >= 0 ? '+' : '';
+const hkCloseInCny = hkLast.close * rate;
+document.getElementById('summary-row').innerHTML = `
+  <div class="summary-card">
+    <div class="card-label">A股收盘 (CNY)</div>
+    <div class="card-value ${aUp?'up':'down'}">${aLast.close.toFixed(2)}</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">港股收盘 (HKD)</div>
+    <div class="card-value ${hkUp?'up':'down'}">${hkLast.close.toFixed(2)}</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">港股折算 CNY</div>
+    <div class="card-value">${hkCloseInCny.toFixed(2)}</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">AH 溢价率</div>
+    <div class="card-value ${premClass}">${premSign}${premLatest.toFixed(2)}%</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">A股数据区间</div>
+    <div class="card-value" style="font-size:16px;">${DATA.a_range}</div>
+  </div>
+  <div class="summary-card">
+    <div class="card-label">港股数据区间</div>
+    <div class="card-value" style="font-size:16px;">${DATA.hk_range}</div>
+  </div>
+`;
+
+// --- Helper: create K-line chart ---
+function createKlineChart(containerId, data, maLines, titleSuffix) {
+  const dates = data.map(d => fmtDate(d.date));
+  const candle = data.map(d => [d.open, d.close, d.low, d.high]);
+  const vol = data.map(d => ({
+    value: d.vol,
+    itemStyle: { color: d.close >= d.open ? upColor : downColor }
+  }));
+
+  function calcMA(period) {
+    return data.map((d, i) => {
+      if (i < period-1) return null;
+      let sum = 0;
+      for (let j=0; j<period; j++) sum += data[i-j].close;
+      return +(sum/period).toFixed(2);
+    });
+  }
+
+  const ma5 = calcMA(5), ma10 = calcMA(10), ma20 = calcMA(20);
+
+  const chart = echarts.init(document.getElementById(containerId));
+
+  chart.setOption({
+    animation: true,
+    legend: { top: 6, data: ['日K','MA5','MA10','MA20'], textStyle: {fontSize:11} },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: function(params) {
+        let kParam = params.find(p => p.seriesId === 'kline');
+        let vParam = params.find(p => p.seriesId === 'vol');
+        if (!kParam) return '';
+        const [o,c,l,h] = kParam.data;
+        const isUp = c >= o;
+        const clr = isUp ? upColor : downColor;
+        let html = `<b>${kParam.axisValue}</b><br/>`;
+        html += `<span style="color:${clr};font-size:16px;font-weight:700">${c.toFixed(2)}</span><br/>`;
+        html += `开 ${o.toFixed(2)} | 收 <span style="color:${clr}">${c.toFixed(2)}</span><br/>`;
+        html += `低 ${l.toFixed(2)} | 高 ${h.toFixed(2)}`;
+        if (vParam) html += `<br/>量 ${(vParam.data.value/10000).toFixed(1)}万手`;
+        return html;
+      }
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0,1], start: 50, end: 100 },
+      { show: true, type: 'slider', xAxisIndex: [0,1], bottom: '4%', height: 20, start: 50, end: 100,
+        borderColor: '#ddd', fillerColor: 'rgba(44,120,215,0.12)', textStyle: {color:'#8492a6'} }
+    ],
+    grid: [
+      { left: '10%', right: '4%', top: '10%', height: '60%' },
+      { left: '10%', right: '4%', top: '76%', height: '16%' }
+    ],
+    xAxis: [
+      { type: 'category', data: dates, boundaryGap: true, axisLine: {lineStyle:{color:'#e8ecf0'}},
+        axisLabel: {color:'#8492a6',fontSize:10}, axisTick: {show:false}, gridIndex:0 },
+      { type: 'category', data: dates, boundaryGap: true, axisLine: {show:false},
+        axisLabel: {show:false}, axisTick: {show:false}, gridIndex:1 }
+    ],
+    yAxis: [
+      { type: 'value', scale: true, position: 'left', axisLine: {show:false},
+        axisTick: {show:false}, axisLabel: {color:'#8492a6',fontSize:10},
+        splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}}, gridIndex:0 },
+      { type: 'value', scale: true, position: 'left', axisLine: {show:false},
+        axisTick: {show:false}, axisLabel: {color:'#8492a6',fontSize:10,
+          formatter: v => (v/10000).toFixed(0)+'万'},
+        splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}}, gridIndex:1 }
+    ],
+    series: [
+      { id: 'kline', name: '日K', type: 'candlestick', data: candle, xAxisIndex:0, yAxisIndex:0,
+        itemStyle: {color:upColor, color0:downColor, borderColor:upBorder, borderColor0:downBorder},
+        barMaxWidth: 10 },
+      { name: 'MA5', type: 'line', data: ma5, smooth:true, showSymbol:false,
+        lineStyle:{width:1,color:'#f39c12'}, xAxisIndex:0, yAxisIndex:0 },
+      { name: 'MA10', type: 'line', data: ma10, smooth:true, showSymbol:false,
+        lineStyle:{width:1,color:'#3498db'}, xAxisIndex:0, yAxisIndex:0 },
+      { name: 'MA20', type: 'line', data: ma20, smooth:true, showSymbol:false,
+        lineStyle:{width:1,color:'#9b59b6'}, xAxisIndex:0, yAxisIndex:0 },
+      { id: 'vol', name: '成交量', type: 'bar', data: vol, xAxisIndex:1, yAxisIndex:1,
+        barMaxWidth: 10 }
+    ]
+  });
+  return chart;
+}
+
+// --- Chart 1: A股 K线 ---
+const chartA = createKlineChart('chart-a-kline', aData);
+
+// --- Chart 2: 港股 K线 ---
+const chartHK = createKlineChart('chart-hk-kline', hkData);
+
+// --- Chart 3: 收盘价对比 (港股折算CNY) ---
+(function() {
+  const chart = echarts.init(document.getElementById('chart-compare-price'));
+  // Use overlap dates for HK (converted to CNY), full range for A
+  const aDates = aData.map(d => fmtDate(d.date));
+  const aPrices = aData.map(d => d.close);
+
+  // For HK, we overlay on same time axis. HK dates are subset of A dates.
+  // We'll use the full A date axis, and interpolate HK where available.
+  const hkMap = {};
+  hkData.forEach(d => { hkMap[d.date] = d.close * rate; });
+
+  const hkPrices = aData.map(d => hkMap[d.date] != null ? hkMap[d.date] : null);
+
+  chart.setOption({
+    animation: true,
+    legend: { top: 6, data: ['A股收盘(CNY)','港股收盘折CNY'], textStyle: {fontSize:12} },
+    tooltip: { trigger: 'axis', axisPointer: {type:'cross'} },
+    dataZoom: [
+      { type: 'inside', start: 40, end: 100 },
+      { show: true, type: 'slider', bottom: '4%', height: 18, start: 40, end: 100 }
+    ],
+    grid: { left: '8%', right: '4%', top: '12%', bottom: '16%' },
+    xAxis: { type: 'category', data: aDates, axisLabel: {color:'#8492a6',fontSize:10},
+      axisLine: {lineStyle:{color:'#e8ecf0'}} },
+    yAxis: { type: 'value', scale: true, axisLabel: {color:'#8492a6',fontSize:10,formatter:'{value}'},
+      splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}} },
+    series: [
+      { name: 'A股收盘(CNY)', type: 'line', data: aPrices, smooth: true,
+        showSymbol: false, lineStyle: {width: 2, color: '#e74c3c'},
+        itemStyle: {color:'#e74c3c'}, areaStyle: {color:'rgba(231,76,60,0.06)'} },
+      { name: '港股收盘折CNY', type: 'line', data: hkPrices, smooth: true,
+        showSymbol: false, lineStyle: {width: 2, color: '#2ecc71'},
+        itemStyle: {color:'#2ecc71'}, connectNulls: true,
+        areaStyle: {color:'rgba(46,204,113,0.06)'} }
+    ]
+  });
+})();
+
+// --- Chart 4: AH溢价率 ---
+(function() {
+  const chart = echarts.init(document.getElementById('chart-premium'));
+  const dates = premiumData.map(d => fmtDate(d.date));
+  const premValues = premiumData.map(d => d.premium_pct);
+
+  // Color segments: positive = red (A股贵), negative = green (A股便宜)
+  const premColors = premValues.map(v => v >= 0 ? upColor : downColor);
+
+  chart.setOption({
+    animation: true,
+    legend: { top: 6, data: ['AH溢价率'], textStyle: {fontSize:12} },
+    tooltip: {
+      trigger: 'axis',
+      formatter: function(params) {
+        const p = params[0];
+        const v = p.data;
+        const clr = v >= 0 ? upColor : downColor;
+        return `<b>${p.axisValue}</b><br/>AH溢价率: <span style="color:${clr};font-weight:700">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span><br/>
+          <span style="font-size:11px;color:#8492a6">${v >= 0 ? 'A股 > 港股（A股更贵）' : 'A股 < 港股（A股更便宜）'}</span>`;
+      }
+    },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { show: true, type: 'slider', bottom: '4%', height: 18, start: 0, end: 100 }
+    ],
+    grid: { left: '8%', right: '4%', top: '12%', bottom: '16%' },
+    xAxis: { type: 'category', data: dates, axisLabel: {color:'#8492a6',fontSize:10},
+      axisLine: {lineStyle:{color:'#e8ecf0'}} },
+    yAxis: {
+      type: 'value', axisLabel: {color:'#8492a6',fontSize:10,formatter:'{value}%'},
+      splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}}
+    },
+    visualMap: {
+      show: false,
+      dimension: 0,
+      pieces: [
+        { lt: 0, color: downColor },
+        { gte: 0, color: upColor }
+      ]
+    },
+    series: [
+      { name: 'AH溢价率', type: 'line', data: premValues, smooth: true,
+        showSymbol: false, lineStyle: {width: 2},
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            {offset: 0, color: 'rgba(231,76,60,0.25)'},
+            {offset: 0.5, color: 'rgba(241,196,15,0.08)'},
+            {offset: 1, color: 'rgba(46,204,113,0.25)'}
+          ])
+        },
+        markLine: {
+          silent: true,
+          data: [{ yAxis: 0, lineStyle: {color:'#f39c12', type:'dashed', width:1}, label: {formatter:'0%溢价线', color:'#f39c12'} }]
+        }
+      }
+    ]
+  });
+})();
+
+// --- Chart 5: 成交量对比 ---
+(function() {
+  const chart = echarts.init(document.getElementById('chart-compare-vol'));
+  // Use overlap dates
+  const dates = premiumData.map(d => fmtDate(d.date));
+  // A股 vol in 万股, 港股 vol in 百万股 (HK vol is much larger)
+  const aVols = premiumData.map(d => d.a_vol / 10000);
+  const hkVols = premiumData.map(d => d.hk_vol / 1000000);
+
+  chart.setOption({
+    animation: true,
+    legend: { top: 6, data: ['A股成交量(万股)','港股成交量(百万股)'], textStyle: {fontSize:12} },
+    tooltip: { trigger: 'axis' },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { show: true, type: 'slider', bottom: '4%', height: 16, start: 0, end: 100 }
+    ],
+    grid: { left: '8%', right: '4%', top: '12%', bottom: '16%' },
+    xAxis: { type: 'category', data: dates, axisLabel: {color:'#8492a6',fontSize:10},
+      axisLine: {lineStyle:{color:'#e8ecf0'}} },
+    yAxis: { type: 'value', axisLabel: {color:'#8492a6',fontSize:10},
+      splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}} },
+    series: [
+      { name: 'A股成交量(万股)', type: 'bar', data: aVols,
+        itemStyle: {color: 'rgba(231,76,60,0.7)'}, barMaxWidth: 8 },
+      { name: '港股成交量(百万股)', type: 'bar', data: hkVols,
+        itemStyle: {color: 'rgba(46,204,113,0.7)'}, barMaxWidth: 8 }
+    ]
+  });
+})();
+
+// --- Chart 6: 涨跌幅对比 ---
+(function() {
+  const chart = echarts.init(document.getElementById('chart-compare-pct'));
+  const dates = premiumData.map(d => fmtDate(d.date));
+  const aPcts = premiumData.map(d => d.a_pct_chg);
+  const hkPcts = premiumData.map(d => d.hk_pct_chg);
+
+  chart.setOption({
+    animation: true,
+    legend: { top: 6, data: ['A股涨跌幅%','港股涨跌幅%'], textStyle: {fontSize:12} },
+    tooltip: { trigger: 'axis' },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { show: true, type: 'slider', bottom: '4%', height: 16, start: 0, end: 100 }
+    ],
+    grid: { left: '8%', right: '4%', top: '12%', bottom: '16%' },
+    xAxis: { type: 'category', data: dates, axisLabel: {color:'#8492a6',fontSize:10},
+      axisLine: {lineStyle:{color:'#e8ecf0'}} },
+    yAxis: { type: 'value', axisLabel: {color:'#8492a6',fontSize:10,formatter:'{value}%'},
+      splitLine: {lineStyle:{color:'#f0f2f5',type:'dashed'}} },
+    series: [
+      { name: 'A股涨跌幅%', type: 'line', data: aPcts, smooth: true,
+        showSymbol: false, lineStyle: {width:1.5, color:'#e74c3c'},
+        itemStyle: {color:'#e74c3c'} },
+      { name: '港股涨跌幅%', type: 'line', data: hkPcts, smooth: true,
+        showSymbol: false, lineStyle: {width:1.5, color:'#2ecc71'},
+        itemStyle: {color:'#2ecc71'} }
+    ]
+  });
+})();
+
+// Responsive
+window.addEventListener('resize', () => {
+  echarts.getInstanceByDom(document.getElementById('chart-a-kline'))?.resize();
+  echarts.getInstanceByDom(document.getElementById('chart-hk-kline'))?.resize();
+  echarts.getInstanceByDom(document.getElementById('chart-compare-price'))?.resize();
+  echarts.getInstanceByDom(document.getElementById('chart-premium'))?.resize();
+  echarts.getInstanceByDom(document.getElementById('chart-compare-vol'))?.resize();
+  echarts.getInstanceByDom(document.getElementById('chart-compare-pct'))?.resize();
+});
+</script>
+
+</body>
+</html>

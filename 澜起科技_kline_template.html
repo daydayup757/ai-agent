@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>澜起科技 (688008) — K线与成交量</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f7fa;
+    color: #333;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header .stock-name {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .header .stock-code {
+    font-size: 16px;
+    color: #8ea4c0;
+    margin-top: 4px;
+  }
+  .header .stock-info {
+    text-align: right;
+  }
+  .header .last-price {
+    font-size: 36px;
+    font-weight: 700;
+  }
+  .header .price-change {
+    font-size: 16px;
+    margin-top: 4px;
+  }
+  .price-up { color: #e74c3c; }
+  .price-down { color: #2ecc71; }
+  .price-flat { color: #8ea4c0; }
+
+  .stats-bar {
+    background: #fff;
+    border-bottom: 1px solid #e8ecf0;
+    padding: 12px 32px;
+    display: flex;
+    gap: 32px;
+    font-size: 14px;
+  }
+  .stats-bar .stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .stats-bar .stat-label { color: #8492a6; }
+  .stats-bar .stat-value { font-weight: 600; }
+
+  .chart-container {
+    margin: 16px 24px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  #kline-chart {
+    width: 100%;
+    height: 640px;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 16px;
+    color: #8492a6;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="stock-name">澜起科技</div>
+    <div class="stock-code">688008.SH · 科创板</div>
+  </div>
+  <div class="stock-info" id="header-info"></div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div class="chart-container">
+  <div id="kline-chart"></div>
+</div>
+
+<div class="footer">数据来源：Tushare Pro · 近一年日线数据</div>
+
+<script>
+// Load chart data from embedded JSON
+const rawData = RAW_DATA_PLACEHOLDER;
+
+// --- Process data for ECharts ---
+const dates = rawData.map(d => {
+  const s = d.date;
+  return s.substring(0,4) + '-' + s.substring(4,6) + '-' + s.substring(6,8);
+});
+
+// Candlestick: [open, close, low, high]
+const candleData = rawData.map(d => [d.open, d.close, d.low, d.high]);
+
+// Volume data with color
+const volData = rawData.map(d => {
+  const isUp = d.close >= d.open;
+  return {
+    value: d.vol,
+    itemStyle: { color: isUp ? '#e74c3c' : '#2ecc71' }
+  };
+});
+
+// MA lines
+function calcMA(data, period) {
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) { result.push(null); continue; }
+    let sum = 0;
+    for (let j = 0; j < period; j++) sum += data[i - j].close;
+    result.push(parseFloat((sum / period).toFixed(2)));
+  }
+  return result;
+}
+
+const ma5 = calcMA(rawData, 5);
+const ma10 = calcMA(rawData, 10);
+const ma20 = calcMA(rawData, 20);
+const ma60 = calcMA(rawData, 60);
+
+// --- Header info ---
+const lastItem = rawData[rawData.length - 1];
+const prevItem = rawData[rawData.length - 2];
+const change = lastItem.close - prevItem.close;
+const pctChg = lastItem.pct_chg;
+const isUp = change > 0;
+const priceClass = isUp ? 'price-up' : (change < 0 ? 'price-down' : 'price-flat');
+
+document.getElementById('header-info').innerHTML = `
+  <div class="last-price ${priceClass}">${lastItem.close.toFixed(2)}</div>
+  <div class="price-change ${priceClass}">
+    ${isUp ? '↑' : (change < 0 ? '↓' : '—')} ${change.toFixed(2)} (${pctChg.toFixed(2)}%)
+  </div>
+`;
+
+// --- Stats bar ---
+document.getElementById('stats-bar').innerHTML = `
+  <div class="stat-item"><span class="stat-label">开盘</span><span class="stat-value">${lastItem.open.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">最高</span><span class="stat-value price-up">${lastItem.high.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">最低</span><span class="stat-value price-down">${lastItem.low.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">昨收</span><span class="stat-value">${lastItem.pre_close.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">成交量</span><span class="stat-value">${(lastItem.vol / 10000).toFixed(1)}万手</span></div>
+  <div class="stat-item"><span class="stat-label">成交额</span><span class="stat-value">${(lastItem.amount / 10000).toFixed(2)}万</span></div>
+  <div class="stat-item"><span class="stat-label">数据区间</span><span class="stat-value">${dates[0]} ~ ${dates[dates.length-1]}</span></div>
+  <div class="stat-item"><span class="stat-label">交易日数</span><span class="stat-value">${rawData.length}</span></div>
+`;
+
+// --- ECharts ---
+const chart = echarts.init(document.getElementById('kline-chart'), null, { renderer: 'canvas' });
+
+const upColor = '#e74c3c';
+const downColor = '#2ecc71';
+const upBorderColor = '#c0392b';
+const downBorderColor = '#27ae60';
+
+chart.setOption({
+  animation: true,
+  legend: {
+    top: 10,
+    data: ['日K', 'MA5', 'MA10', 'MA20', 'MA60'],
+    textStyle: { color: '#333', fontSize: 12 }
+  },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'cross', crossStyle: { color: '#999' } },
+    formatter: function(params) {
+      let html = '<div style="font-size:14px;font-weight:600;margin-bottom:4px;">' + params[0].axisValue + '</div>';
+      let kData = null;
+      let volParam = null;
+      params.forEach(p => {
+        if (p.seriesId === 'kline') kData = p.data;
+        if (p.seriesId === 'vol') volParam = p;
+      });
+      if (kData) {
+        const [open, close, low, high] = kData;
+        const isUp = close >= open;
+        const clr = isUp ? upColor : downColor;
+        html += `<div style="color:${clr};font-weight:700;font-size:18px;margin-bottom:6px;">${close.toFixed(2)}</div>`;
+        html += `<table style="font-size:12px;line-height:1.6;">`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">开盘</td><td>${open.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">收盘</td><td style="color:${clr}">${close.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">最低</td><td style="color:${downColor}">${low.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">最高</td><td style="color:${upColor}">${high.toFixed(2)}</td></tr>`;
+        html += `</table>`;
+      }
+      if (volParam) {
+        html += `<div style="font-size:12px;margin-top:4px;">成交量：${(volParam.data.value / 10000).toFixed(1)}万手</div>`;
+      }
+      return html;
+    }
+  },
+  axisPointer: {
+    link: [{ xAxisIndex: [0, 1] }],
+    label: {
+      backgroundColor: '#666'
+    }
+  },
+  dataZoom: [
+    {
+      type: 'inside',
+      xAxisIndex: [0, 1],
+      start: 60,
+      end: 100
+    },
+    {
+      show: true,
+      type: 'slider',
+      xAxisIndex: [0, 1],
+      top: '92%',
+      start: 60,
+      end: 100,
+      height: 24,
+      borderColor: '#e8ecf0',
+      fillerColor: 'rgba(44,120,215,0.15)',
+      handleStyle: { color: '#2d3a4a' },
+      textStyle: { color: '#8492a6' }
+    }
+  ],
+  grid: [
+    {
+      left: '8%',
+      right: '3%',
+      top: '8%',
+      height: '55%'
+    },
+    {
+      left: '8%',
+      right: '3%',
+      top: '70%',
+      height: '18%'
+    }
+  ],
+  xAxis: [
+    {
+      type: 'category',
+      data: dates,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: '#e8ecf0' } },
+      axisLabel: { color: '#8492a6', fontSize: 11 },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      gridIndex: 0
+    },
+    {
+      type: 'category',
+      data: dates,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: '#e8ecf0' } },
+      axisLabel: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      gridIndex: 1
+    }
+  ],
+  yAxis: [
+    {
+      type: 'value',
+      scale: true,
+      splitNumber: 6,
+      position: 'left',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#8492a6', fontSize: 11, formatter: '{value}' },
+      splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+      gridIndex: 0
+    },
+    {
+      type: 'value',
+      scale: true,
+      splitNumber: 2,
+      position: 'left',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#8492a6', fontSize: 11, formatter: function(v) { return (v / 10000).toFixed(0) + '万'; } },
+      splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+      gridIndex: 1
+    }
+  ],
+  series: [
+    {
+      id: 'kline',
+      name: '日K',
+      type: 'candlestick',
+      data: candleData,
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      },
+      barMaxWidth: 12
+    },
+    {
+      name: 'MA5',
+      type: 'line',
+      data: ma5,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#f39c12' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA10',
+      type: 'line',
+      data: ma10,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#3498db' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA20',
+      type: 'line',
+      data: ma20,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#9b59b6' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA60',
+      type: 'line',
+      data: ma60,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#1abc9c' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      id: 'vol',
+      name: '成交量',
+      type: 'bar',
+      data: volData,
+      xAxisIndex: 1,
+      yAxisIndex: 1,
+      barMaxWidth: 12,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      }
+    }
+  ]
+});
+
+// Responsive
+window.addEventListener('resize', () => chart.resize());
+</script>
+
+</body>
+</html>

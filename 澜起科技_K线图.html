@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>澜起科技 (688008) — K线与成交量</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f7fa;
+    color: #333;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a2332 0%, #2d3a4a 100%);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header .stock-name {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .header .stock-code {
+    font-size: 16px;
+    color: #8ea4c0;
+    margin-top: 4px;
+  }
+  .header .stock-info {
+    text-align: right;
+  }
+  .header .last-price {
+    font-size: 36px;
+    font-weight: 700;
+  }
+  .header .price-change {
+    font-size: 16px;
+    margin-top: 4px;
+  }
+  .price-up { color: #e74c3c; }
+  .price-down { color: #2ecc71; }
+  .price-flat { color: #8ea4c0; }
+
+  .stats-bar {
+    background: #fff;
+    border-bottom: 1px solid #e8ecf0;
+    padding: 12px 32px;
+    display: flex;
+    gap: 32px;
+    font-size: 14px;
+  }
+  .stats-bar .stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .stats-bar .stat-label { color: #8492a6; }
+  .stats-bar .stat-value { font-weight: 600; }
+
+  .chart-container {
+    margin: 16px 24px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  #kline-chart {
+    width: 100%;
+    height: 640px;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 16px;
+    color: #8492a6;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="stock-name">澜起科技</div>
+    <div class="stock-code">688008.SH · 科创板</div>
+  </div>
+  <div class="stock-info" id="header-info"></div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div class="chart-container">
+  <div id="kline-chart"></div>
+</div>
+
+<div class="footer">数据来源：Tushare Pro · 近一年日线数据</div>
+
+<script>
+// Load chart data from embedded JSON
+const rawData = [{"date": "20250630", "open": 80.6, "close": 82.0, "low": 80.59, "high": 82.16, "vol": 198746.17, "amount": 1619593.97, "pct_chg": 2.3082, "pre_close": 80.15}, {"date": "20250701", "open": 81.99, "close": 82.0, "low": 81.47, "high": 82.72, "vol": 140682.84, "amount": 1153547.185, "pct_chg": 0.0, "pre_close": 82.0}, {"date": "20250702", "open": 81.6, "close": 80.26, "low": 80.19, "high": 81.96, "vol": 132174.05, "amount": 1070537.909, "pct_chg": -2.122, "pre_close": 82.0}, {"date": "20250703", "open": 80.67, "close": 82.3, "low": 80.51, "high": 82.32, "vol": 159515.37, "amount": 1304172.369, "pct_chg": 2.5417, "pre_close": 80.26}, {"date": "20250704", "open": 82.0, "close": 81.62, "low": 81.1, "high": 83.16, "vol": 154172.33, "amount": 1263298.169, "pct_chg": -0.8262, "pre_close": 82.3}, {"date": "20250707", "open": 81.16, "close": 80.26, "low": 79.42, "high": 81.5, "vol": 140087.73, "amount": 1123018.831, "pct_chg": -1.6663, "pre_close": 81.62}, {"date": "20250708", "open": 80.5, "close": 82.9, "low": 80.44, "high": 83.28, "vol": 202424.21, "amount": 1666940.193, "pct_chg": 3.2893, "pre_close": 80.26}, {"date": "20250709", "open": 82.56, "close": 81.0, "low": 80.82, "high": 83.4, "vol": 163036.65, "amount": 1333202.181, "pct_chg": -2.2919, "pre_close": 82.9}, {"date": "20250710", "open": 81.3, "close": 80.82, "low": 80.6, "high": 81.8, "vol": 159563.97, "amount": 1293897.739, "pct_chg": -0.2222, "pre_close": 81.0}, {"date": "20250711", "open": 80.85, "close": 83.03, "low": 80.5, "high": 83.28, "vol": 230359.16, "amount": 1895583.115, "pct_chg": 2.7345, "pre_close": 80.82}, {"date": "20250714", "open": 83.1, "close": 82.71, "low": 82.16, "high": 83.88, "vol": 177938.11, "amount": 1476471.776, "pct_chg": -0.3854, "pre_close": 83.03}, {"date": "20250715", "open": 82.74, "close": 85.3, "low": 82.51, "high": 86.36, "vol": 347114.64, "amount": 2943051.999, "pct_chg": 3.1314, "pre_close": 82.71}, {"date": "20250716", "open": 85.75, "close": 84.96, "low": 84.68, "high": 87.97, "vol": 313532.59, "amount": 2698394.022, "pct_chg": -0.3986, "pre_close": 85.3}, {"date": "20250717", "open": 84.85, "close": 86.27, "low": 84.35, "high": 86.5, "vol": 198432.22, "amount": 1699120.155, "pct_chg": 1.5419, "pre_close": 84.96}, {"date": "20250718", "open": 85.95, "close": 85.66, "low": 85.01, "high": 86.7, "vol": 158471.4, "amount": 1358709.722, "pct_chg": -0.7071, "pre_close": 86.27}, {"date": "20250721", "open": 85.3, "close": 83.91, "low": 83.3, "high": 85.4, "vol": 232276.64, "amount": 1951408.895, "pct_chg": -2.043, "pre_close": 85.66}, {"date": "20250722", "open": 83.92, "close": 83.32, "low": 83.07, "high": 84.2, "vol": 183901.33, "amount": 1538275.406, "pct_chg": -0.7031, "pre_close": 83.91}, {"date": "20250723", "open": 83.32, "close": 83.52, "low": 82.97, "high": 84.64, "vol": 205507.69, "amount": 1721320.231, "pct_chg": 0.24, "pre_close": 83.32}, {"date": "20250724", "open": 83.4, "close": 83.68, "low": 82.69, "high": 83.83, "vol": 244290.0, "amount": 2032548.761, "pct_chg": 0.1916, "pre_close": 83.52}, {"date": "20250725", "open": 83.61, "close": 84.6, "low": 82.65, "high": 85.1, "vol": 263683.46, "amount": 2206120.703, "pct_chg": 1.0994, "pre_close": 83.68}, {"date": "20250728", "open": 84.5, "close": 85.97, "low": 83.69, "high": 86.18, "vol": 311729.49, "amount": 2647130.732, "pct_chg": 1.6194, "pre_close": 84.6}, {"date": "20250729", "open": 85.55, "close": 87.0, "low": 85.51, "high": 88.1, "vol": 313462.8, "amount": 2726107.369, "pct_chg": 1.1981, "pre_close": 85.97}, {"date": "20250730", "open": 87.1, "close": 87.21, "low": 86.01, "high": 88.66, "vol": 273123.34, "amount": 2382778.525, "pct_chg": 0.2414, "pre_close": 87.0}, {"date": "20250731", "open": 87.0, "close": 85.02, "low": 84.51, "high": 88.87, "vol": 310144.23, "amount": 2685465.197, "pct_chg": -2.5112, "pre_close": 87.21}, {"date": "20250801", "open": 85.1, "close": 82.19, "low": 81.66, "high": 85.85, "vol": 291833.21, "amount": 2433071.396, "pct_chg": -3.3286, "pre_close": 85.02}, {"date": "20250804", "open": 82.0, "close": 84.16, "low": 81.93, "high": 84.5, "vol": 245796.52, "amount": 2056417.449, "pct_chg": 2.3969, "pre_close": 82.19}, {"date": "20250805", "open": 84.29, "close": 85.16, "low": 83.55, "high": 85.85, "vol": 180386.09, "amount": 1534568.539, "pct_chg": 1.1882, "pre_close": 84.16}, {"date": "20250806", "open": 85.17, "close": 90.94, "low": 84.71, "high": 91.55, "vol": 476694.97, "amount": 4245844.915, "pct_chg": 6.7872, "pre_close": 85.16}, {"date": "20250807", "open": 91.4, "close": 92.96, "low": 91.4, "high": 93.86, "vol": 401658.35, "amount": 3722074.031, "pct_chg": 2.2212, "pre_close": 90.94}, {"date": "20250808", "open": 92.95, "close": 91.36, "low": 91.22, "high": 93.02, "vol": 216129.13, "amount": 1987730.576, "pct_chg": -1.7212, "pre_close": 92.96}, {"date": "20250811", "open": 91.36, "close": 90.83, "low": 90.17, "high": 92.3, "vol": 188475.77, "amount": 1716045.439, "pct_chg": -0.5801, "pre_close": 91.36}, {"date": "20250812", "open": 90.77, "close": 90.16, "low": 89.81, "high": 92.06, "vol": 252880.63, "amount": 2291309.035, "pct_chg": -0.7376, "pre_close": 90.83}, {"date": "20250813", "open": 90.74, "close": 90.15, "low": 89.6, "high": 91.1, "vol": 265836.73, "amount": 2397768.098, "pct_chg": -0.0111, "pre_close": 90.16}, {"date": "20250814", "open": 90.15, "close": 88.94, "low": 88.8, "high": 91.6, "vol": 349681.06, "amount": 3151502.979, "pct_chg": -1.3422, "pre_close": 90.15}, {"date": "20250815", "open": 89.96, "close": 93.0, "low": 89.95, "high": 93.28, "vol": 376189.89, "amount": 3465634.377, "pct_chg": 4.5649, "pre_close": 88.94}, {"date": "20250818", "open": 93.02, "close": 91.73, "low": 91.5, "high": 93.6, "vol": 409799.4, "amount": 3787493.032, "pct_chg": -1.3656, "pre_close": 93.0}, {"date": "20250819", "open": 92.33, "close": 89.6, "low": 89.5, "high": 93.07, "vol": 350897.28, "amount": 3205167.959, "pct_chg": -2.322, "pre_close": 91.73}, {"date": "20250820", "open": 90.47, "close": 92.86, "low": 88.33, "high": 92.87, "vol": 417557.78, "amount": 3773037.133, "pct_chg": 3.6384, "pre_close": 89.6}, {"date": "20250821", "open": 92.88, "close": 91.18, "low": 90.81, "high": 94.94, "vol": 368570.17, "amount": 3419729.266, "pct_chg": -1.8092, "pre_close": 92.86}, {"date": "20250822", "open": 91.94, "close": 99.11, "low": 91.18, "high": 99.19, "vol": 718053.19, "amount": 6876378.058, "pct_chg": 8.6971, "pre_close": 91.18}, {"date": "20250825", "open": 102.87, "close": 101.98, "low": 99.61, "high": 106.59, "vol": 747152.33, "amount": 7626148.836, "pct_chg": 2.8958, "pre_close": 99.11}, {"date": "20250826", "open": 101.0, "close": 103.6, "low": 100.3, "high": 106.25, "vol": 479915.43, "amount": 4985994.764, "pct_chg": 1.5885, "pre_close": 101.98}, {"date": "20250827", "open": 103.2, "close": 108.2, "low": 102.86, "high": 115.87, "vol": 781875.92, "amount": 8569515.518, "pct_chg": 4.4402, "pre_close": 103.6}, {"date": "20250828", "open": 109.0, "close": 117.5, "low": 109.0, "high": 117.71, "vol": 809760.49, "amount": 9229646.128, "pct_chg": 8.5952, "pre_close": 108.2}, {"date": "20250829", "open": 115.15, "close": 122.9, "low": 111.0, "high": 124.68, "vol": 703320.22, "amount": 8155828.408, "pct_chg": 4.5957, "pre_close": 117.5}, {"date": "20250901", "open": 128.0, "close": 124.22, "low": 119.8, "high": 129.98, "vol": 644236.13, "amount": 8008368.599, "pct_chg": 1.074, "pre_close": 122.9}, {"date": "20250902", "open": 124.55, "close": 115.4, "low": 114.01, "high": 127.18, "vol": 703482.41, "amount": 8390027.696, "pct_chg": -7.1003, "pre_close": 124.22}, {"date": "20250903", "open": 114.36, "close": 112.49, "low": 110.98, "high": 115.82, "vol": 498354.91, "amount": 5648215.323, "pct_chg": -2.5217, "pre_close": 115.4}, {"date": "20250904", "open": 112.75, "close": 102.85, "low": 101.1, "high": 112.98, "vol": 671627.8, "amount": 7112289.575, "pct_chg": -8.5697, "pre_close": 112.49}, {"date": "20250905", "open": 104.15, "close": 108.41, "low": 102.48, "high": 108.76, "vol": 502484.72, "amount": 5315320.108, "pct_chg": 5.4059, "pre_close": 102.85}, {"date": "20250908", "open": 110.0, "close": 109.33, "low": 108.04, "high": 112.59, "vol": 459883.1, "amount": 5052386.115, "pct_chg": 0.8486, "pre_close": 108.41}, {"date": "20250909", "open": 110.5, "close": 107.95, "low": 107.71, "high": 112.5, "vol": 402045.88, "amount": 4401854.457, "pct_chg": -1.2622, "pre_close": 109.33}, {"date": "20250910", "open": 109.0, "close": 114.1, "low": 108.02, "high": 117.54, "vol": 585520.99, "amount": 6667367.576, "pct_chg": 5.6971, "pre_close": 107.95}, {"date": "20250911", "open": 110.0, "close": 117.4, "low": 108.0, "high": 119.27, "vol": 787775.47, "amount": 8997684.448, "pct_chg": 2.8922, "pre_close": 114.1}, {"date": "20250912", "open": 117.4, "close": 118.2, "low": 116.02, "high": 122.89, "vol": 663546.39, "amount": 7877920.482, "pct_chg": 0.6814, "pre_close": 117.4}, {"date": "20250915", "open": 120.3, "close": 117.16, "low": 116.2, "high": 121.03, "vol": 422874.66, "amount": 4986853.163, "pct_chg": -0.8799, "pre_close": 118.2}, {"date": "20250916", "open": 118.0, "close": 120.48, "low": 117.09, "high": 124.55, "vol": 542843.36, "amount": 6574364.949, "pct_chg": 2.8337, "pre_close": 117.16}, {"date": "20250917", "open": 119.76, "close": 119.11, "low": 115.5, "high": 120.39, "vol": 433512.64, "amount": 5121161.588, "pct_chg": -1.1371, "pre_close": 120.48}, {"date": "20250918", "open": 119.52, "close": 119.01, "low": 116.57, "high": 124.55, "vol": 625314.63, "amount": 7585970.354, "pct_chg": -0.084, "pre_close": 119.11}, {"date": "20250919", "open": 122.17, "close": 120.59, "low": 119.66, "high": 131.54, "vol": 753276.46, "amount": 9426904.078, "pct_chg": 1.3276, "pre_close": 119.01}, {"date": "20250922", "open": 120.18, "close": 125.29, "low": 120.11, "high": 126.44, "vol": 558638.77, "amount": 6942433.23, "pct_chg": 3.8975, "pre_close": 120.59}, {"date": "20250923", "open": 124.05, "close": 126.31, "low": 120.57, "high": 127.77, "vol": 586997.95, "amount": 7297717.212, "pct_chg": 0.8141, "pre_close": 125.29}, {"date": "20250924", "open": 125.0, "close": 135.86, "low": 124.0, "high": 139.99, "vol": 781769.77, "amount": 10312100.711, "pct_chg": 7.5608, "pre_close": 126.31}, {"date": "20250925", "open": 133.15, "close": 136.6, "low": 132.1, "high": 137.2, "vol": 444798.31, "amount": 6000713.85, "pct_chg": 0.5447, "pre_close": 135.86}, {"date": "20250926", "open": 135.6, "close": 133.1, "low": 133.01, "high": 139.45, "vol": 379833.23, "amount": 5178707.826, "pct_chg": -2.5622, "pre_close": 136.6}, {"date": "20250929", "open": 134.66, "close": 143.65, "low": 133.0, "high": 143.88, "vol": 507697.23, "amount": 7038909.279, "pct_chg": 7.9264, "pre_close": 133.1}, {"date": "20250930", "open": 145.8, "close": 154.8, "low": 142.5, "high": 157.97, "vol": 593846.22, "amount": 9028981.402, "pct_chg": 7.7619, "pre_close": 143.65}, {"date": "20251009", "open": 162.0, "close": 157.08, "low": 155.78, "high": 169.9, "vol": 759014.1, "amount": 12306816.994, "pct_chg": 1.4729, "pre_close": 154.8}, {"date": "20251010", "open": 154.0, "close": 150.06, "low": 148.55, "high": 159.0, "vol": 536322.06, "amount": 8189039.489, "pct_chg": -4.4691, "pre_close": 157.08}, {"date": "20251013", "open": 141.0, "close": 148.05, "low": 141.0, "high": 152.55, "vol": 486880.86, "amount": 7213219.113, "pct_chg": -1.3395, "pre_close": 150.06}, {"date": "20251014", "open": 151.24, "close": 147.0, "low": 143.77, "high": 155.9, "vol": 514269.01, "amount": 7689556.27, "pct_chg": -0.7092, "pre_close": 148.05}, {"date": "20251015", "open": 143.11, "close": 144.55, "low": 136.38, "high": 145.0, "vol": 458651.71, "amount": 6457985.399, "pct_chg": -1.6667, "pre_close": 147.0}, {"date": "20251016", "open": 143.5, "close": 144.6, "low": 143.2, "high": 151.0, "vol": 402648.66, "amount": 5911915.893, "pct_chg": 0.0346, "pre_close": 144.55}, {"date": "20251017", "open": 143.15, "close": 138.0, "low": 137.81, "high": 145.45, "vol": 382019.18, "amount": 5365666.868, "pct_chg": -4.5643, "pre_close": 144.6}, {"date": "20251020", "open": 141.98, "close": 135.15, "low": 133.66, "high": 142.99, "vol": 458386.67, "amount": 6315068.479, "pct_chg": -2.0652, "pre_close": 138.0}, {"date": "20251021", "open": 136.3, "close": 139.0, "low": 135.3, "high": 140.44, "vol": 351218.73, "amount": 4875734.734, "pct_chg": 2.8487, "pre_close": 135.15}, {"date": "20251022", "open": 137.5, "close": 136.36, "low": 134.7, "high": 137.87, "vol": 251019.72, "amount": 3424355.151, "pct_chg": -1.7579, "pre_close": 138.8}, {"date": "20251023", "open": 135.88, "close": 136.42, "low": 132.33, "high": 137.2, "vol": 223038.75, "amount": 3004703.089, "pct_chg": 0.044, "pre_close": 136.36}, {"date": "20251024", "open": 139.39, "close": 146.05, "low": 139.3, "high": 146.19, "vol": 490977.71, "amount": 7076979.205, "pct_chg": 7.0591, "pre_close": 136.42}, {"date": "20251027", "open": 153.0, "close": 151.01, "low": 146.11, "high": 153.46, "vol": 543984.76, "amount": 8145484.175, "pct_chg": 3.3961, "pre_close": 146.05}, {"date": "20251028", "open": 147.5, "close": 149.36, "low": 146.99, "high": 152.09, "vol": 348338.76, "amount": 5205905.76, "pct_chg": -1.0926, "pre_close": 151.01}, {"date": "20251029", "open": 149.0, "close": 153.3, "low": 149.0, "high": 155.5, "vol": 327299.27, "amount": 4988411.386, "pct_chg": 2.6379, "pre_close": 149.36}, {"date": "20251030", "open": 155.0, "close": 152.0, "low": 151.21, "high": 158.88, "vol": 436911.61, "amount": 6756662.788, "pct_chg": -0.848, "pre_close": 153.3}, {"date": "20251031", "open": 148.01, "close": 136.3, "low": 136.3, "high": 149.0, "vol": 707860.84, "amount": 9928715.9, "pct_chg": -10.3289, "pre_close": 152.0}, {"date": "20251103", "open": 134.0, "close": 133.13, "low": 128.03, "high": 135.26, "vol": 477364.71, "amount": 6257947.515, "pct_chg": -2.3258, "pre_close": 136.3}, {"date": "20251104", "open": 134.8, "close": 130.07, "low": 128.88, "high": 134.88, "vol": 328125.18, "amount": 4317429.028, "pct_chg": -2.2985, "pre_close": 133.13}, {"date": "20251105", "open": 125.2, "close": 128.91, "low": 125.16, "high": 129.58, "vol": 289662.53, "amount": 3685197.269, "pct_chg": -0.8918, "pre_close": 130.07}, {"date": "20251106", "open": 130.58, "close": 132.31, "low": 128.96, "high": 133.41, "vol": 385455.43, "amount": 5066112.411, "pct_chg": 2.6375, "pre_close": 128.91}, {"date": "20251107", "open": 130.0, "close": 130.08, "low": 129.08, "high": 132.88, "vol": 256361.65, "amount": 3353290.907, "pct_chg": -1.6854, "pre_close": 132.31}, {"date": "20251110", "open": 132.01, "close": 127.8, "low": 125.0, "high": 132.82, "vol": 317988.04, "amount": 4071395.446, "pct_chg": -1.7528, "pre_close": 130.08}, {"date": "20251111", "open": 129.29, "close": 127.14, "low": 126.8, "high": 131.0, "vol": 240863.01, "amount": 3104258.517, "pct_chg": -0.5164, "pre_close": 127.8}, {"date": "20251112", "open": 125.2, "close": 124.68, "low": 122.7, "high": 127.5, "vol": 277747.47, "amount": 3459722.133, "pct_chg": -1.9349, "pre_close": 127.14}, {"date": "20251113", "open": 124.0, "close": 127.8, "low": 123.8, "high": 130.27, "vol": 307932.38, "amount": 3945799.723, "pct_chg": 2.5024, "pre_close": 124.68}, {"date": "20251114", "open": 124.0, "close": 121.17, "low": 121.17, "high": 124.24, "vol": 294838.25, "amount": 3613577.351, "pct_chg": -5.1878, "pre_close": 127.8}, {"date": "20251117", "open": 121.28, "close": 121.2, "low": 120.07, "high": 123.8, "vol": 201819.43, "amount": 2454629.886, "pct_chg": 0.0248, "pre_close": 121.17}, {"date": "20251118", "open": 120.8, "close": 120.9, "low": 119.78, "high": 122.88, "vol": 226247.75, "amount": 2740616.115, "pct_chg": -0.2475, "pre_close": 121.2}, {"date": "20251119", "open": 120.1, "close": 119.4, "low": 118.68, "high": 122.07, "vol": 172317.31, "amount": 2068680.523, "pct_chg": -1.2407, "pre_close": 120.9}, {"date": "20251120", "open": 122.36, "close": 118.02, "low": 117.88, "high": 122.8, "vol": 178852.04, "amount": 2138178.618, "pct_chg": -1.1558, "pre_close": 119.4}, {"date": "20251121", "open": 114.88, "close": 113.9, "low": 113.7, "high": 117.0, "vol": 239345.4, "amount": 2757308.507, "pct_chg": -3.4909, "pre_close": 118.02}, {"date": "20251124", "open": 115.67, "close": 113.9, "low": 112.0, "high": 115.95, "vol": 197425.32, "amount": 2249464.316, "pct_chg": 0.0, "pre_close": 113.9}, {"date": "20251125", "open": 116.6, "close": 116.29, "low": 115.72, "high": 118.77, "vol": 262937.64, "amount": 3075887.228, "pct_chg": 2.0983, "pre_close": 113.9}, {"date": "20251126", "open": 115.08, "close": 117.11, "low": 114.45, "high": 119.24, "vol": 221755.21, "amount": 2605052.139, "pct_chg": 0.7051, "pre_close": 116.29}, {"date": "20251127", "open": 118.2, "close": 117.4, "low": 117.02, "high": 122.22, "vol": 300730.82, "amount": 3601089.382, "pct_chg": 0.2476, "pre_close": 117.11}, {"date": "20251128", "open": 117.58, "close": 118.5, "low": 116.86, "high": 119.22, "vol": 182618.22, "amount": 2156907.673, "pct_chg": 0.937, "pre_close": 117.4}, {"date": "20251201", "open": 120.0, "close": 120.45, "low": 116.97, "high": 121.1, "vol": 246952.79, "amount": 2952408.801, "pct_chg": 1.6456, "pre_close": 118.5}, {"date": "20251202", "open": 120.06, "close": 118.16, "low": 117.54, "high": 120.26, "vol": 167436.06, "amount": 1986826.731, "pct_chg": -1.9012, "pre_close": 120.45}, {"date": "20251203", "open": 118.72, "close": 118.1, "low": 117.9, "high": 120.28, "vol": 158078.18, "amount": 1879712.163, "pct_chg": -0.0508, "pre_close": 118.16}, {"date": "20251204", "open": 117.55, "close": 119.7, "low": 116.85, "high": 120.33, "vol": 165564.55, "amount": 1968861.996, "pct_chg": 1.3548, "pre_close": 118.1}, {"date": "20251205", "open": 119.5, "close": 119.23, "low": 117.7, "high": 120.22, "vol": 185511.77, "amount": 2208461.366, "pct_chg": -0.3926, "pre_close": 119.7}, {"date": "20251208", "open": 120.0, "close": 123.11, "low": 119.25, "high": 124.77, "vol": 299445.77, "amount": 3675936.356, "pct_chg": 3.2542, "pre_close": 119.23}, {"date": "20251209", "open": 123.13, "close": 123.1, "low": 122.03, "high": 124.5, "vol": 229380.3, "amount": 2825894.249, "pct_chg": -0.0081, "pre_close": 123.11}, {"date": "20251210", "open": 122.3, "close": 120.51, "low": 117.83, "high": 122.36, "vol": 284839.33, "amount": 3394900.658, "pct_chg": -2.104, "pre_close": 123.1}, {"date": "20251211", "open": 123.82, "close": 119.39, "low": 119.28, "high": 126.45, "vol": 384333.65, "amount": 4724702.542, "pct_chg": -0.9294, "pre_close": 120.51}, {"date": "20251212", "open": 118.88, "close": 120.4, "low": 117.72, "high": 121.5, "vol": 387004.65, "amount": 4636449.696, "pct_chg": 0.846, "pre_close": 119.39}, {"date": "20251215", "open": 117.97, "close": 115.14, "low": 114.82, "high": 118.87, "vol": 305342.92, "amount": 3558366.587, "pct_chg": -4.3688, "pre_close": 120.4}, {"date": "20251216", "open": 114.5, "close": 113.57, "low": 112.62, "high": 115.84, "vol": 215083.63, "amount": 2453623.052, "pct_chg": -1.3636, "pre_close": 115.14}, {"date": "20251217", "open": 114.1, "close": 117.3, "low": 112.81, "high": 117.59, "vol": 225168.36, "amount": 2600876.285, "pct_chg": 3.2843, "pre_close": 113.57}, {"date": "20251218", "open": 116.37, "close": 116.77, "low": 115.88, "high": 119.48, "vol": 201479.89, "amount": 2369083.916, "pct_chg": -0.4518, "pre_close": 117.3}, {"date": "20251219", "open": 119.0, "close": 117.58, "low": 116.87, "high": 119.8, "vol": 217885.52, "amount": 2578921.823, "pct_chg": 0.6937, "pre_close": 116.77}, {"date": "20251222", "open": 118.52, "close": 120.4, "low": 118.14, "high": 121.17, "vol": 241130.22, "amount": 2896335.09, "pct_chg": 2.3984, "pre_close": 117.58}, {"date": "20251223", "open": 120.71, "close": 121.0, "low": 119.8, "high": 122.15, "vol": 214178.25, "amount": 2591075.075, "pct_chg": 0.4983, "pre_close": 120.4}, {"date": "20251224", "open": 120.5, "close": 121.8, "low": 119.91, "high": 122.36, "vol": 209151.13, "amount": 2533918.138, "pct_chg": 0.6612, "pre_close": 121.0}, {"date": "20251225", "open": 122.0, "close": 121.3, "low": 120.32, "high": 123.24, "vol": 185865.6, "amount": 2257158.472, "pct_chg": -0.4105, "pre_close": 121.8}, {"date": "20251226", "open": 120.44, "close": 120.88, "low": 119.7, "high": 122.74, "vol": 189115.98, "amount": 2291736.955, "pct_chg": -0.3462, "pre_close": 121.3}, {"date": "20251229", "open": 120.88, "close": 119.12, "low": 118.66, "high": 122.59, "vol": 237698.75, "amount": 2860079.56, "pct_chg": -1.456, "pre_close": 120.88}, {"date": "20251230", "open": 118.98, "close": 119.91, "low": 118.5, "high": 122.44, "vol": 265269.37, "amount": 3195267.437, "pct_chg": 0.6632, "pre_close": 119.12}, {"date": "20251231", "open": 121.0, "close": 117.8, "low": 117.72, "high": 121.1, "vol": 197500.88, "amount": 2347258.375, "pct_chg": -1.7597, "pre_close": 119.91}, {"date": "20260105", "open": 119.5, "close": 127.75, "low": 119.5, "high": 129.25, "vol": 533779.69, "amount": 6697219.456, "pct_chg": 8.4465, "pre_close": 117.8}, {"date": "20260106", "open": 129.0, "close": 133.52, "low": 127.05, "high": 135.63, "vol": 534905.77, "amount": 7068415.855, "pct_chg": 4.5166, "pre_close": 127.75}, {"date": "20260107", "open": 141.0, "close": 135.7, "low": 133.1, "high": 143.29, "vol": 621265.66, "amount": 8527476.023, "pct_chg": 1.6327, "pre_close": 133.52}, {"date": "20260108", "open": 134.5, "close": 132.08, "low": 131.5, "high": 135.88, "vol": 403319.3, "amount": 5373015.63, "pct_chg": -2.6676, "pre_close": 135.7}, {"date": "20260109", "open": 131.0, "close": 132.38, "low": 129.26, "high": 133.77, "vol": 357015.66, "amount": 4697780.145, "pct_chg": 0.2271, "pre_close": 132.08}, {"date": "20260112", "open": 134.16, "close": 132.24, "low": 130.61, "high": 134.98, "vol": 412043.03, "amount": 5457945.577, "pct_chg": -0.1058, "pre_close": 132.38}, {"date": "20260113", "open": 132.24, "close": 129.5, "low": 128.5, "high": 134.07, "vol": 363459.73, "amount": 4755801.76, "pct_chg": -2.072, "pre_close": 132.24}, {"date": "20260114", "open": 131.99, "close": 132.45, "low": 130.19, "high": 135.85, "vol": 523522.37, "amount": 6980979.874, "pct_chg": 2.278, "pre_close": 129.5}, {"date": "20260115", "open": 132.8, "close": 135.2, "low": 132.4, "high": 137.08, "vol": 480064.73, "amount": 6470337.082, "pct_chg": 2.0763, "pre_close": 132.45}, {"date": "20260116", "open": 138.1, "close": 142.59, "low": 136.0, "high": 144.0, "vol": 646187.79, "amount": 9066637.555, "pct_chg": 5.466, "pre_close": 135.2}, {"date": "20260119", "open": 141.5, "close": 138.9, "low": 137.1, "high": 142.0, "vol": 520448.89, "amount": 7229000.807, "pct_chg": -2.5878, "pre_close": 142.59}, {"date": "20260120", "open": 137.95, "close": 143.0, "low": 137.5, "high": 147.0, "vol": 624025.24, "amount": 8965934.253, "pct_chg": 2.9518, "pre_close": 138.9}, {"date": "20260121", "open": 144.0, "close": 160.02, "low": 143.7, "high": 163.2, "vol": 903534.38, "amount": 14053821.104, "pct_chg": 11.9021, "pre_close": 143.0}, {"date": "20260122", "open": 172.87, "close": 167.9, "low": 164.11, "high": 181.8, "vol": 1140818.79, "amount": 19457143.659, "pct_chg": 4.9244, "pre_close": 160.02}, {"date": "20260123", "open": 163.2, "close": 160.02, "low": 158.01, "high": 170.47, "vol": 743836.21, "amount": 12036487.451, "pct_chg": -4.6933, "pre_close": 167.9}, {"date": "20260126", "open": 158.19, "close": 164.11, "low": 158.19, "high": 169.34, "vol": 680821.47, "amount": 11289036.898, "pct_chg": 2.5559, "pre_close": 160.02}, {"date": "20260127", "open": 162.13, "close": 169.02, "low": 155.6, "high": 170.48, "vol": 661490.15, "amount": 10860031.421, "pct_chg": 2.9919, "pre_close": 164.11}, {"date": "20260128", "open": 171.0, "close": 173.26, "low": 168.88, "high": 176.18, "vol": 649919.83, "amount": 11220605.164, "pct_chg": 2.5086, "pre_close": 169.02}, {"date": "20260129", "open": 175.6, "close": 162.18, "low": 162.12, "high": 176.0, "vol": 602538.22, "amount": 10043739.113, "pct_chg": -6.395, "pre_close": 173.26}, {"date": "20260130", "open": 160.48, "close": 181.85, "low": 160.2, "high": 185.88, "vol": 914321.0, "amount": 15888889.058, "pct_chg": 12.1285, "pre_close": 162.18}, {"date": "20260202", "open": 181.0, "close": 177.93, "low": 176.39, "high": 188.88, "vol": 759818.61, "amount": 13766339.252, "pct_chg": -2.1556, "pre_close": 181.85}, {"date": "20260203", "open": 184.79, "close": 182.03, "low": 175.0, "high": 188.79, "vol": 684196.18, "amount": 12463547.881, "pct_chg": 2.3043, "pre_close": 177.93}, {"date": "20260204", "open": 175.6, "close": 170.9, "low": 164.11, "high": 175.69, "vol": 567404.17, "amount": 9577099.946, "pct_chg": -6.1144, "pre_close": 182.03}, {"date": "20260205", "open": 161.88, "close": 168.15, "low": 161.5, "high": 170.65, "vol": 324652.15, "amount": 5433114.062, "pct_chg": -1.6091, "pre_close": 170.9}, {"date": "20260206", "open": 165.0, "close": 163.54, "low": 162.8, "high": 166.96, "vol": 315152.1, "amount": 5193818.869, "pct_chg": -2.7416, "pre_close": 168.15}, {"date": "20260209", "open": 170.88, "close": 173.45, "low": 165.87, "high": 173.8, "vol": 423301.56, "amount": 7195903.953, "pct_chg": 6.0597, "pre_close": 163.54}, {"date": "20260210", "open": 172.5, "close": 177.5, "low": 172.11, "high": 180.0, "vol": 389776.43, "amount": 6880679.822, "pct_chg": 2.335, "pre_close": 173.45}, {"date": "20260211", "open": 174.9, "close": 169.9, "low": 168.52, "high": 174.9, "vol": 285694.13, "amount": 4884135.853, "pct_chg": -4.2817, "pre_close": 177.5}, {"date": "20260212", "open": 171.68, "close": 168.11, "low": 165.0, "high": 174.9, "vol": 401026.13, "amount": 6717266.03, "pct_chg": -1.0536, "pre_close": 169.9}, {"date": "20260213", "open": 166.8, "close": 164.6, "low": 164.23, "high": 171.1, "vol": 292600.81, "amount": 4875817.521, "pct_chg": -2.0879, "pre_close": 168.11}, {"date": "20260224", "open": 169.99, "close": 174.61, "low": 167.03, "high": 177.64, "vol": 403826.09, "amount": 6969692.576, "pct_chg": 6.0814, "pre_close": 164.6}, {"date": "20260225", "open": 174.62, "close": 167.74, "low": 165.61, "high": 174.63, "vol": 359921.04, "amount": 6047307.975, "pct_chg": -3.9345, "pre_close": 174.61}, {"date": "20260226", "open": 167.9, "close": 165.12, "low": 163.88, "high": 168.88, "vol": 343616.43, "amount": 5689131.101, "pct_chg": -1.5619, "pre_close": 167.74}, {"date": "20260227", "open": 162.5, "close": 163.55, "low": 161.56, "high": 165.68, "vol": 258207.72, "amount": 4204995.601, "pct_chg": -0.9508, "pre_close": 165.12}, {"date": "20260302", "open": 159.03, "close": 159.44, "low": 158.26, "high": 164.56, "vol": 312124.32, "amount": 5021299.24, "pct_chg": -2.513, "pre_close": 163.55}, {"date": "20260303", "open": 160.06, "close": 147.89, "low": 147.67, "high": 160.96, "vol": 522089.58, "amount": 7929787.641, "pct_chg": -7.2441, "pre_close": 159.44}, {"date": "20260304", "open": 147.0, "close": 150.31, "low": 147.0, "high": 154.84, "vol": 407250.55, "amount": 6178671.223, "pct_chg": 1.6364, "pre_close": 147.89}, {"date": "20260305", "open": 156.51, "close": 152.63, "low": 151.11, "high": 156.83, "vol": 302019.25, "amount": 4637827.383, "pct_chg": 1.5435, "pre_close": 150.31}, {"date": "20260306", "open": 150.88, "close": 151.61, "low": 150.63, "high": 154.68, "vol": 210908.11, "amount": 3209139.23, "pct_chg": -0.6683, "pre_close": 152.63}, {"date": "20260309", "open": 145.0, "close": 148.18, "low": 140.83, "high": 149.28, "vol": 365598.49, "amount": 5283916.931, "pct_chg": -2.2624, "pre_close": 151.61}, {"date": "20260310", "open": 152.99, "close": 152.98, "low": 150.86, "high": 154.02, "vol": 305722.21, "amount": 4669719.591, "pct_chg": 3.2393, "pre_close": 148.18}, {"date": "20260311", "open": 154.09, "close": 149.8, "low": 149.32, "high": 154.31, "vol": 251905.45, "amount": 3804569.502, "pct_chg": -2.0787, "pre_close": 152.98}, {"date": "20260312", "open": 149.05, "close": 147.85, "low": 146.29, "high": 151.09, "vol": 235285.72, "amount": 3492954.221, "pct_chg": -1.3017, "pre_close": 149.8}, {"date": "20260313", "open": 146.77, "close": 146.5, "low": 145.24, "high": 150.45, "vol": 265748.76, "amount": 3921210.918, "pct_chg": -0.9131, "pre_close": 147.85}, {"date": "20260316", "open": 147.0, "close": 152.5, "low": 145.4, "high": 153.71, "vol": 409654.81, "amount": 6145692.306, "pct_chg": 4.0956, "pre_close": 146.5}, {"date": "20260317", "open": 153.0, "close": 146.59, "low": 146.42, "high": 153.0, "vol": 299524.47, "amount": 4463314.315, "pct_chg": -3.8754, "pre_close": 152.5}, {"date": "20260318", "open": 150.0, "close": 153.62, "low": 148.62, "high": 153.95, "vol": 479787.5, "amount": 7302233.907, "pct_chg": 4.7957, "pre_close": 146.59}, {"date": "20260319", "open": 150.54, "close": 149.68, "low": 148.75, "high": 153.56, "vol": 382433.78, "amount": 5771710.067, "pct_chg": -2.5648, "pre_close": 153.62}, {"date": "20260320", "open": 151.4, "close": 144.9, "low": 144.86, "high": 151.87, "vol": 350753.43, "amount": 5195762.804, "pct_chg": -3.1935, "pre_close": 149.68}, {"date": "20260323", "open": 139.99, "close": 136.8, "low": 135.91, "high": 142.38, "vol": 383499.82, "amount": 5332637.842, "pct_chg": -5.5901, "pre_close": 144.9}, {"date": "20260324", "open": 140.0, "close": 137.57, "low": 132.1, "high": 140.0, "vol": 300404.34, "amount": 4070281.341, "pct_chg": 0.5629, "pre_close": 136.8}, {"date": "20260325", "open": 139.5, "close": 142.0, "low": 139.2, "high": 143.88, "vol": 325799.74, "amount": 4614540.748, "pct_chg": 3.2202, "pre_close": 137.57}, {"date": "20260326", "open": 139.88, "close": 136.99, "low": 136.1, "high": 140.34, "vol": 248477.42, "amount": 3429348.107, "pct_chg": -3.5282, "pre_close": 142.0}, {"date": "20260327", "open": 132.01, "close": 135.1, "low": 131.59, "high": 136.95, "vol": 234873.11, "amount": 3155339.568, "pct_chg": -1.3797, "pre_close": 136.99}, {"date": "20260330", "open": 131.58, "close": 132.0, "low": 131.05, "high": 133.3, "vol": 255719.49, "amount": 3378424.406, "pct_chg": -2.2946, "pre_close": 135.1}, {"date": "20260331", "open": 130.0, "close": 125.28, "low": 125.0, "high": 130.0, "vol": 364438.45, "amount": 4627857.546, "pct_chg": -5.0909, "pre_close": 132.0}, {"date": "20260401", "open": 130.0, "close": 129.97, "low": 127.27, "high": 131.12, "vol": 342306.27, "amount": 4427751.403, "pct_chg": 3.7436, "pre_close": 125.28}, {"date": "20260402", "open": 131.6, "close": 129.0, "low": 127.72, "high": 133.4, "vol": 305824.23, "amount": 3994346.358, "pct_chg": -0.7463, "pre_close": 129.97}, {"date": "20260403", "open": 130.71, "close": 127.26, "low": 127.0, "high": 131.05, "vol": 185980.57, "amount": 2383276.219, "pct_chg": -1.3488, "pre_close": 129.0}, {"date": "20260407", "open": 128.97, "close": 127.9, "low": 127.69, "high": 130.5, "vol": 198025.96, "amount": 2553643.322, "pct_chg": 0.5029, "pre_close": 127.26}, {"date": "20260408", "open": 133.67, "close": 139.21, "low": 132.53, "high": 139.21, "vol": 500428.66, "amount": 6807382.587, "pct_chg": 8.8428, "pre_close": 127.9}, {"date": "20260409", "open": 137.52, "close": 139.17, "low": 136.66, "high": 141.9, "vol": 371454.23, "amount": 5192060.559, "pct_chg": -0.0287, "pre_close": 139.21}, {"date": "20260410", "open": 143.0, "close": 143.53, "low": 142.3, "high": 145.5, "vol": 401408.66, "amount": 5781459.387, "pct_chg": 3.1329, "pre_close": 139.17}, {"date": "20260413", "open": 142.4, "close": 152.3, "low": 142.38, "high": 155.15, "vol": 534921.0, "amount": 8013876.154, "pct_chg": 6.1102, "pre_close": 143.53}, {"date": "20260414", "open": 157.5, "close": 153.36, "low": 153.06, "high": 160.0, "vol": 630131.64, "amount": 9866055.917, "pct_chg": 0.696, "pre_close": 152.3}, {"date": "20260415", "open": 156.0, "close": 147.18, "low": 146.03, "high": 156.08, "vol": 491316.62, "amount": 7391381.043, "pct_chg": -4.0297, "pre_close": 153.36}, {"date": "20260416", "open": 147.48, "close": 151.0, "low": 144.34, "high": 152.85, "vol": 397312.02, "amount": 5943470.586, "pct_chg": 2.5955, "pre_close": 147.18}, {"date": "20260417", "open": 150.52, "close": 150.78, "low": 150.03, "high": 155.0, "vol": 455253.75, "amount": 6918522.635, "pct_chg": -0.1457, "pre_close": 151.0}, {"date": "20260420", "open": 153.2, "close": 154.66, "low": 152.25, "high": 156.97, "vol": 432313.91, "amount": 6681984.367, "pct_chg": 2.5733, "pre_close": 150.78}, {"date": "20260421", "open": 154.69, "close": 158.4, "low": 149.66, "high": 159.63, "vol": 452160.78, "amount": 7056650.218, "pct_chg": 2.4182, "pre_close": 154.66}, {"date": "20260422", "open": 158.41, "close": 163.35, "low": 157.29, "high": 164.25, "vol": 581695.2, "amount": 9344823.543, "pct_chg": 3.125, "pre_close": 158.4}, {"date": "20260423", "open": 166.65, "close": 159.7, "low": 158.15, "high": 168.88, "vol": 621429.69, "amount": 10151119.437, "pct_chg": -2.2345, "pre_close": 163.35}, {"date": "20260424", "open": 167.0, "close": 163.5, "low": 161.4, "high": 172.0, "vol": 621121.76, "amount": 10258761.896, "pct_chg": 2.3795, "pre_close": 159.7}, {"date": "20260427", "open": 174.77, "close": 178.09, "low": 171.07, "high": 180.6, "vol": 825574.42, "amount": 14577855.792, "pct_chg": 8.9235, "pre_close": 163.5}, {"date": "20260428", "open": 172.7, "close": 173.61, "low": 170.02, "high": 177.37, "vol": 694862.73, "amount": 12058490.133, "pct_chg": -2.5156, "pre_close": 178.09}, {"date": "20260429", "open": 171.0, "close": 169.9, "low": 165.35, "high": 171.95, "vol": 517496.5, "amount": 8740377.398, "pct_chg": -2.137, "pre_close": 173.61}, {"date": "20260430", "open": 174.28, "close": 173.3, "low": 169.53, "high": 175.14, "vol": 591287.93, "amount": 10225515.353, "pct_chg": 2.0012, "pre_close": 169.9}, {"date": "20260506", "open": 190.3, "close": 198.98, "low": 188.01, "high": 205.57, "vol": 1100589.76, "amount": 21918317.974, "pct_chg": 14.8182, "pre_close": 173.3}, {"date": "20260507", "open": 201.99, "close": 209.91, "low": 200.0, "high": 213.0, "vol": 885443.27, "amount": 18259174.456, "pct_chg": 5.493, "pre_close": 198.98}, {"date": "20260508", "open": 205.0, "close": 210.27, "low": 203.68, "high": 212.19, "vol": 623845.07, "amount": 13002789.032, "pct_chg": 0.1715, "pre_close": 209.91}, {"date": "20260511", "open": 231.26, "close": 249.22, "low": 230.0, "high": 252.32, "vol": 1102142.05, "amount": 26886059.943, "pct_chg": 18.5238, "pre_close": 210.27}, {"date": "20260512", "open": 240.85, "close": 240.7, "low": 231.08, "high": 245.74, "vol": 974189.0, "amount": 23246871.32, "pct_chg": -3.4187, "pre_close": 249.22}, {"date": "20260513", "open": 233.0, "close": 258.8, "low": 233.0, "high": 258.8, "vol": 848754.03, "amount": 20825582.487, "pct_chg": 7.5197, "pre_close": 240.7}, {"date": "20260514", "open": 280.0, "close": 265.08, "low": 262.97, "high": 282.0, "vol": 1076688.65, "amount": 29317281.285, "pct_chg": 2.4266, "pre_close": 258.8}, {"date": "20260515", "open": 265.0, "close": 247.98, "low": 242.63, "high": 272.0, "vol": 1145286.75, "amount": 29165161.028, "pct_chg": -6.4509, "pre_close": 265.08}, {"date": "20260518", "open": 247.2, "close": 247.99, "low": 243.55, "high": 258.88, "vol": 789791.1, "amount": 19844303.606, "pct_chg": 0.004, "pre_close": 247.98}, {"date": "20260519", "open": 239.05, "close": 247.11, "low": 233.08, "high": 249.6, "vol": 690322.32, "amount": 16641271.556, "pct_chg": -0.3549, "pre_close": 247.99}, {"date": "20260520", "open": 247.12, "close": 257.3, "low": 247.11, "high": 261.98, "vol": 747901.77, "amount": 19129283.434, "pct_chg": 4.1237, "pre_close": 247.11}, {"date": "20260521", "open": 274.8, "close": 262.17, "low": 261.0, "high": 287.34, "vol": 1120043.67, "amount": 30655307.067, "pct_chg": 1.8927, "pre_close": 257.3}, {"date": "20260522", "open": 272.88, "close": 271.83, "low": 262.01, "high": 276.74, "vol": 785466.03, "amount": 21210617.605, "pct_chg": 3.6846, "pre_close": 262.17}, {"date": "20260525", "open": 267.0, "close": 284.08, "low": 262.5, "high": 285.68, "vol": 894252.1, "amount": 24433132.286, "pct_chg": 4.5065, "pre_close": 271.83}, {"date": "20260526", "open": 286.0, "close": 272.29, "low": 265.55, "high": 286.0, "vol": 789222.72, "amount": 21495664.613, "pct_chg": -4.1502, "pre_close": 284.08}, {"date": "20260527", "open": 284.99, "close": 265.5, "low": 263.88, "high": 288.79, "vol": 766214.3, "amount": 21249972.465, "pct_chg": -2.4937, "pre_close": 272.29}, {"date": "20260528", "open": 260.0, "close": 260.98, "low": 253.23, "high": 263.85, "vol": 624090.77, "amount": 16126791.592, "pct_chg": -1.7024, "pre_close": 265.5}, {"date": "20260529", "open": 265.3, "close": 253.0, "low": 248.8, "high": 272.0, "vol": 730562.03, "amount": 18926622.143, "pct_chg": -3.0577, "pre_close": 260.98}, {"date": "20260601", "open": 250.88, "close": 232.3, "low": 232.12, "high": 252.8, "vol": 719862.74, "amount": 17309417.346, "pct_chg": -8.1818, "pre_close": 253.0}, {"date": "20260602", "open": 236.04, "close": 237.0, "low": 224.95, "high": 242.3, "vol": 666310.87, "amount": 15623059.971, "pct_chg": 2.0232, "pre_close": 232.3}, {"date": "20260603", "open": 248.25, "close": 253.9, "low": 245.11, "high": 265.11, "vol": 913173.85, "amount": 23401315.656, "pct_chg": 7.1308, "pre_close": 237.0}, {"date": "20260604", "open": 248.5, "close": 259.67, "low": 248.01, "high": 265.0, "vol": 650951.0, "amount": 16975622.033, "pct_chg": 2.2725, "pre_close": 253.9}, {"date": "20260605", "open": 249.98, "close": 239.39, "low": 237.61, "high": 254.56, "vol": 692407.58, "amount": 17072494.074, "pct_chg": -7.8099, "pre_close": 259.67}, {"date": "20260608", "open": 221.0, "close": 224.31, "low": 221.0, "high": 232.19, "vol": 609372.92, "amount": 13831005.9, "pct_chg": -6.2993, "pre_close": 239.39}, {"date": "20260609", "open": 233.58, "close": 236.4, "low": 228.85, "high": 239.16, "vol": 528244.28, "amount": 12350581.487, "pct_chg": 5.3899, "pre_close": 224.31}, {"date": "20260610", "open": 233.16, "close": 231.0, "low": 228.6, "high": 239.56, "vol": 429641.62, "amount": 10025176.119, "pct_chg": -2.2843, "pre_close": 236.4}, {"date": "20260611", "open": 231.0, "close": 228.7, "low": 224.72, "high": 234.63, "vol": 429837.18, "amount": 9858025.357, "pct_chg": -0.9957, "pre_close": 231.0}, {"date": "20260612", "open": 243.99, "close": 224.88, "low": 223.7, "high": 245.0, "vol": 637454.14, "amount": 14891803.524, "pct_chg": -1.6703, "pre_close": 228.7}, {"date": "20260615", "open": 230.22, "close": 240.1, "low": 223.33, "high": 240.18, "vol": 537361.69, "amount": 12571796.508, "pct_chg": 6.7681, "pre_close": 224.88}, {"date": "20260616", "open": 243.21, "close": 244.17, "low": 238.71, "high": 247.16, "vol": 538361.74, "amount": 13097791.05, "pct_chg": 1.6951, "pre_close": 240.1}, {"date": "20260617", "open": 238.87, "close": 262.5, "low": 238.09, "high": 262.65, "vol": 741506.7, "amount": 18771027.097, "pct_chg": 7.5071, "pre_close": 244.17}, {"date": "20260618", "open": 260.0, "close": 269.9, "low": 258.01, "high": 275.28, "vol": 815716.99, "amount": 21797711.131, "pct_chg": 2.819, "pre_close": 262.5}, {"date": "20260622", "open": 276.0, "close": 280.05, "low": 269.0, "high": 285.0, "vol": 795528.29, "amount": 22143863.153, "pct_chg": 3.7607, "pre_close": 269.9}, {"date": "20260623", "open": 275.01, "close": 258.0, "low": 255.55, "high": 278.0, "vol": 774899.04, "amount": 20536285.888, "pct_chg": -7.8736, "pre_close": 280.05}, {"date": "20260624", "open": 256.0, "close": 266.49, "low": 253.66, "high": 266.5, "vol": 635914.65, "amount": 16616342.485, "pct_chg": 3.2907, "pre_close": 258.0}, {"date": "20260625", "open": 277.5, "close": 279.16, "low": 268.0, "high": 284.99, "vol": 913012.16, "amount": 25353678.687, "pct_chg": 4.7544, "pre_close": 266.49}, {"date": "20260626", "open": 272.51, "close": 261.82, "low": 257.02, "high": 276.97, "vol": 755001.92, "amount": 20074810.816, "pct_chg": -6.2115, "pre_close": 279.16}, {"date": "20260629", "open": 262.0, "close": 296.06, "low": 262.0, "high": 296.66, "vol": 1067262.92, "amount": 30294267.139, "pct_chg": 13.0777, "pre_close": 261.82}];
+
+// --- Process data for ECharts ---
+const dates = rawData.map(d => {
+  const s = d.date;
+  return s.substring(0,4) + '-' + s.substring(4,6) + '-' + s.substring(6,8);
+});
+
+// Candlestick: [open, close, low, high]
+const candleData = rawData.map(d => [d.open, d.close, d.low, d.high]);
+
+// Volume data with color
+const volData = rawData.map(d => {
+  const isUp = d.close >= d.open;
+  return {
+    value: d.vol,
+    itemStyle: { color: isUp ? '#e74c3c' : '#2ecc71' }
+  };
+});
+
+// MA lines
+function calcMA(data, period) {
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) { result.push(null); continue; }
+    let sum = 0;
+    for (let j = 0; j < period; j++) sum += data[i - j].close;
+    result.push(parseFloat((sum / period).toFixed(2)));
+  }
+  return result;
+}
+
+const ma5 = calcMA(rawData, 5);
+const ma10 = calcMA(rawData, 10);
+const ma20 = calcMA(rawData, 20);
+const ma60 = calcMA(rawData, 60);
+
+// --- Header info ---
+const lastItem = rawData[rawData.length - 1];
+const prevItem = rawData[rawData.length - 2];
+const change = lastItem.close - prevItem.close;
+const pctChg = lastItem.pct_chg;
+const isUp = change > 0;
+const priceClass = isUp ? 'price-up' : (change < 0 ? 'price-down' : 'price-flat');
+
+document.getElementById('header-info').innerHTML = `
+  <div class="last-price ${priceClass}">${lastItem.close.toFixed(2)}</div>
+  <div class="price-change ${priceClass}">
+    ${isUp ? '↑' : (change < 0 ? '↓' : '—')} ${change.toFixed(2)} (${pctChg.toFixed(2)}%)
+  </div>
+`;
+
+// --- Stats bar ---
+document.getElementById('stats-bar').innerHTML = `
+  <div class="stat-item"><span class="stat-label">开盘</span><span class="stat-value">${lastItem.open.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">最高</span><span class="stat-value price-up">${lastItem.high.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">最低</span><span class="stat-value price-down">${lastItem.low.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">昨收</span><span class="stat-value">${lastItem.pre_close.toFixed(2)}</span></div>
+  <div class="stat-item"><span class="stat-label">成交量</span><span class="stat-value">${(lastItem.vol / 10000).toFixed(1)}万手</span></div>
+  <div class="stat-item"><span class="stat-label">成交额</span><span class="stat-value">${(lastItem.amount / 10000).toFixed(2)}万</span></div>
+  <div class="stat-item"><span class="stat-label">数据区间</span><span class="stat-value">${dates[0]} ~ ${dates[dates.length-1]}</span></div>
+  <div class="stat-item"><span class="stat-label">交易日数</span><span class="stat-value">${rawData.length}</span></div>
+`;
+
+// --- ECharts ---
+const chart = echarts.init(document.getElementById('kline-chart'), null, { renderer: 'canvas' });
+
+const upColor = '#e74c3c';
+const downColor = '#2ecc71';
+const upBorderColor = '#c0392b';
+const downBorderColor = '#27ae60';
+
+chart.setOption({
+  animation: true,
+  legend: {
+    top: 10,
+    data: ['日K', 'MA5', 'MA10', 'MA20', 'MA60'],
+    textStyle: { color: '#333', fontSize: 12 }
+  },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: { type: 'cross', crossStyle: { color: '#999' } },
+    formatter: function(params) {
+      let html = '<div style="font-size:14px;font-weight:600;margin-bottom:4px;">' + params[0].axisValue + '</div>';
+      let kData = null;
+      let volParam = null;
+      params.forEach(p => {
+        if (p.seriesId === 'kline') kData = p.data;
+        if (p.seriesId === 'vol') volParam = p;
+      });
+      if (kData) {
+        const [open, close, low, high] = kData;
+        const isUp = close >= open;
+        const clr = isUp ? upColor : downColor;
+        html += `<div style="color:${clr};font-weight:700;font-size:18px;margin-bottom:6px;">${close.toFixed(2)}</div>`;
+        html += `<table style="font-size:12px;line-height:1.6;">`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">开盘</td><td>${open.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">收盘</td><td style="color:${clr}">${close.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">最低</td><td style="color:${downColor}">${low.toFixed(2)}</td></tr>`;
+        html += `<tr><td style="color:#8492a6;padding-right:8px;">最高</td><td style="color:${upColor}">${high.toFixed(2)}</td></tr>`;
+        html += `</table>`;
+      }
+      if (volParam) {
+        html += `<div style="font-size:12px;margin-top:4px;">成交量：${(volParam.data.value / 10000).toFixed(1)}万手</div>`;
+      }
+      return html;
+    }
+  },
+  axisPointer: {
+    link: [{ xAxisIndex: [0, 1] }],
+    label: {
+      backgroundColor: '#666'
+    }
+  },
+  dataZoom: [
+    {
+      type: 'inside',
+      xAxisIndex: [0, 1],
+      start: 60,
+      end: 100
+    },
+    {
+      show: true,
+      type: 'slider',
+      xAxisIndex: [0, 1],
+      top: '92%',
+      start: 60,
+      end: 100,
+      height: 24,
+      borderColor: '#e8ecf0',
+      fillerColor: 'rgba(44,120,215,0.15)',
+      handleStyle: { color: '#2d3a4a' },
+      textStyle: { color: '#8492a6' }
+    }
+  ],
+  grid: [
+    {
+      left: '8%',
+      right: '3%',
+      top: '8%',
+      height: '55%'
+    },
+    {
+      left: '8%',
+      right: '3%',
+      top: '70%',
+      height: '18%'
+    }
+  ],
+  xAxis: [
+    {
+      type: 'category',
+      data: dates,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: '#e8ecf0' } },
+      axisLabel: { color: '#8492a6', fontSize: 11 },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      gridIndex: 0
+    },
+    {
+      type: 'category',
+      data: dates,
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: '#e8ecf0' } },
+      axisLabel: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      gridIndex: 1
+    }
+  ],
+  yAxis: [
+    {
+      type: 'value',
+      scale: true,
+      splitNumber: 6,
+      position: 'left',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#8492a6', fontSize: 11, formatter: '{value}' },
+      splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+      gridIndex: 0
+    },
+    {
+      type: 'value',
+      scale: true,
+      splitNumber: 2,
+      position: 'left',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#8492a6', fontSize: 11, formatter: function(v) { return (v / 10000).toFixed(0) + '万'; } },
+      splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } },
+      gridIndex: 1
+    }
+  ],
+  series: [
+    {
+      id: 'kline',
+      name: '日K',
+      type: 'candlestick',
+      data: candleData,
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      },
+      barMaxWidth: 12
+    },
+    {
+      name: 'MA5',
+      type: 'line',
+      data: ma5,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#f39c12' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA10',
+      type: 'line',
+      data: ma10,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#3498db' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA20',
+      type: 'line',
+      data: ma20,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#9b59b6' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      name: 'MA60',
+      type: 'line',
+      data: ma60,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1, color: '#1abc9c' },
+      xAxisIndex: 0,
+      yAxisIndex: 0
+    },
+    {
+      id: 'vol',
+      name: '成交量',
+      type: 'bar',
+      data: volData,
+      xAxisIndex: 1,
+      yAxisIndex: 1,
+      barMaxWidth: 12,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      }
+    }
+  ]
+});
+
+// Responsive
+window.addEventListener('resize', () => chart.resize());
+</script>
+
+</body>
+</html>
